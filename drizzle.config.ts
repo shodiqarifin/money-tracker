@@ -5,6 +5,6 @@ export default defineConfig({
   schema: "./server/database/schema.ts",
   out: "./server/database/migrations",
   dbCredentials: {
-    url: "./data/money-tracker.db",
+    url: "file:./data/money-tracker.db",
   },
 })
