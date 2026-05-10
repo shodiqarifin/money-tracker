@@ -1,75 +1,104 @@
-# Nuxt Minimal Starter
+# Money Tracker
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Aplikasi pencatat keuangan pribadi berbasis web yang dibangun dengan Nuxt 4.
+
+## Tech Stack
+
+- **Framework**: [Nuxt 4](https://nuxt.com) + Vue 3
+- **Auth**: [Better Auth](https://better-auth.com)
+- **Database**: SQLite via [Drizzle ORM](https://orm.drizzle.team) + [@libsql/client](https://github.com/tursodatabase/libsql-client-ts)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com)
+- **Utilities**: VueUse, nanoid
+
+## Fitur
+
+- Register & login (email + password)
+- Manajemen kategori pemasukan & pengeluaran
+- Pencatatan transaksi (tambah, edit, hapus)
+- Dashboard ringkasan keuangan (total pemasukan, pengeluaran, saldo)
+
+## Struktur Database
+
+```
+users, sessions, accounts, verifications  ← dikelola Better Auth
+wallets    ← wallet per user
+categories ← kategori income/expense per wallet
+transactions ← transaksi per wallet + kategori
+```
 
 ## Setup
 
-Make sure to install dependencies:
+Install dependencies:
 
 ```bash
-# npm
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
 ```
 
-## Development Server
-
-Start the development server on `http://localhost:3000`:
+Buat file `.env` dari contoh:
 
 ```bash
-# npm
+cp .env.example .env
+```
+
+Isi `.env`:
+
+```env
+BETTER_AUTH_SECRET=your-secret-key
+BETTER_AUTH_URL=http://localhost:3000
+DATABASE_URL=file:./data/db.sqlite
+```
+
+Jalankan migrasi database:
+
+```bash
+npm run db:push
+```
+
+## Development
+
+```bash
 npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+Buka [http://localhost:3000](http://localhost:3000).
 
-Build the application for production:
+## Database Scripts
+
+| Command | Keterangan |
+|---|---|
+| `npm run db:generate` | Generate file migrasi dari schema |
+| `npm run db:migrate` | Jalankan migrasi |
+| `npm run db:push` | Push schema langsung ke DB (dev) |
+| `npm run db:studio` | Buka Drizzle Studio (GUI) |
+
+## Build Production
 
 ```bash
-# npm
 npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
 npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
 ```
 
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+## Struktur Project
+
+```
+├── app/
+│   ├── composables/     # useAuthClient, useTransaction
+│   ├── layouts/         # default layout
+│   ├── middleware/      # auth guard
+│   ├── pages/           # index, login, signup, dashboard, transactions, categories
+│   └── types/           # TypeScript types
+├── lib/
+│   ├── auth.ts          # Better Auth server config
+│   └── auth-client.ts   # Better Auth client config
+├── server/
+│   ├── api/
+│   │   ├── auth/        # Better Auth handler
+│   │   ├── categories/  # CRUD kategori
+│   │   ├── dashboard/   # summary endpoint
+│   │   └── transactions/ # CRUD transaksi
+│   ├── database/
+│   │   └── schema.ts    # Drizzle schema
+│   ├── middleware/       # auth middleware server-side
+│   └── utils/           # db instance, wallet utils
+└── drizzle.config.ts
+```
