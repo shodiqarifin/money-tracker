@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     .where(and(eq(transactions.walletId, wallet.id), gte(transactions.date, monthStart)))
     .groupBy(categories.type)
 
-  // Top 5 spending categories this month
+  // Top 5 spending categories this month (exclude system/uncategorized)
   const topCategories = await db
     .select({
       name: categories.name,
@@ -49,7 +49,8 @@ export default defineEventHandler(async (event) => {
       and(
         eq(transactions.walletId, wallet.id),
         gte(transactions.date, monthStart),
-        eq(categories.type, "expense")
+        eq(categories.type, "expense"),
+        eq(categories.isSystem, false),
       )
     )
     .groupBy(categories.id)

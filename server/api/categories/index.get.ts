@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { db } from "~~/server/utils/db"
 import { categories } from "~~/server/database/schema"
 import { getWalletByUserId } from "~~/server/utils/wallet"
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const result = await db
     .select()
     .from(categories)
-    .where(eq(categories.walletId, wallet.id))
+    .where(and(eq(categories.walletId, wallet.id), eq(categories.isSystem, false)))
     .orderBy(categories.type, categories.name)
 
   return result

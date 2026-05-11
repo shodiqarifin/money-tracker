@@ -71,9 +71,8 @@ async function handleDelete(category) {
   }
 }
 
-const incomeCategories = computed(() => categories.value.filter((c) => c.type === "income" && !c.isSystem))
-const expenseCategories = computed(() => categories.value.filter((c) => c.type === "expense" && !c.isSystem))
-const systemCategories = computed(() => categories.value.filter((c) => c.isSystem))
+const incomeCategories = computed(() => categories.value.filter((c) => c.type === "income"))
+const expenseCategories = computed(() => categories.value.filter((c) => c.type === "expense"))
 
 onMounted(async () => {
   await fetchCategories()
@@ -162,24 +161,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <!-- System -->
-      <div>
-        <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">System</h2>
-        <div class="space-y-1">
-          <div
-            v-for="cat in systemCategories"
-            :key="cat.id"
-            class="flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl"
-          >
-            <div class="flex items-center gap-3">
-              <div class="w-2 h-2 rounded-full bg-gray-400" />
-              <span class="text-sm font-medium text-gray-500">{{ cat.name }}</span>
-              <span class="text-xs text-gray-400">system</span>
-            </div>
-            <span class="text-xs text-gray-300">protected</span>
-          </div>
-        </div>
-      </div>
+
     </div>
 
     <!-- Modal -->

@@ -39,15 +39,17 @@ async function handleLogout() {
           </div>
         </div>
 
-        <div class="flex items-center gap-3">
-          <span class="text-sm text-gray-500">{{ user?.name || user?.email }}</span>
-          <button
-            @click="handleLogout"
-            class="text-sm text-red-400 hover:text-red-600 transition-colors"
-          >
-            Logout
-          </button>
-        </div>
+        <ClientOnly>
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-500">{{ user?.name || user?.email }}</span>
+            <button
+              @click="handleLogout"
+              class="text-sm text-red-400 hover:text-red-600 transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        </ClientOnly>
       </div>
     </nav>
 

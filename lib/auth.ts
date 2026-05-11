@@ -41,36 +41,35 @@ export const auth = betterAuth({
       })
       if (existingWallet) return
 
-      // 1. Buat wallet
       const walletId = nanoid()
-      await db.insert(schema.wallets).values({
-        id: walletId,
-        userId,
-        name: "My Wallet",
-        type: "personal",
-      })
 
-      // 2. Buat Uncategorized (system category)
-      await db.insert(schema.categories).values({
-        id: nanoid(),
-        walletId,
-        name: "Uncategorized",
-        type: "expense",
-        isPreset: false,
-        isSystem: true,
-      })
+      await db.transaction(async (tx) => {
+        // 1. Buat wallet
+        await tx.insert(schema.wallets).values({
+          id: walletId,
+          userId,
+          name: "My Wallet",
+          type: "personal",
+        })
 
-      // 3. Buat preset categories
-      await db.insert(schema.categories).values(
-        PRESET_CATEGORIES.map((cat) => ({
-          id: nanoid(),
-          walletId,
-          name: cat.name,
-          type: cat.type,
-          isPreset: true,
-          isSystem: false,
-        }))
-      )
+        // 2. Buat dua system categories — satu per type, sebagai fallback saat category dihapus
+        await tx.insert(schema.categories).values([
+          { id: nanoid(), walletId, name: "Uncategorized", type: "income", isPreset: false, isSystem: true },
+          { id: nanoid(), walletId, name: "Uncategorized", type: "expense", isPreset: false, isSystem: true },
+        ])
+
+        // 3. Buat preset categories
+        await tx.insert(schema.categories).values(
+          PRESET_CATEGORIES.map((cat) => ({
+            id: nanoid(),
+            walletId,
+            name: cat.name,
+            type: cat.type,
+            isPreset: true,
+            isSystem: false,
+          }))
+        )
+      })
     }),
   },
 })

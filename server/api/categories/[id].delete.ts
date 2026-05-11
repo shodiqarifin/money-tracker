@@ -28,22 +28,28 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, message: "Kategori sistem tidak bisa dihapus" })
   }
 
-  // Cari Uncategorized milik wallet ini sebagai fallback
+  // Cari system category dengan type yang sama — income tetap income, expense tetap expense
   const uncategorized = await db.query.categories.findFirst({
-    where: and(eq(categories.walletId, wallet.id), eq(categories.isSystem, true)),
+    where: and(
+      eq(categories.walletId, wallet.id),
+      eq(categories.isSystem, true),
+      eq(categories.type, existing.type),
+    ),
   })
 
   if (!uncategorized) {
     throw createError({ statusCode: 500, message: "System category tidak ditemukan" })
   }
 
-  // Reassign semua transaksi ke Uncategorized
-  await db
-    .update(transactions)
-    .set({ categoryId: uncategorized.id })
-    .where(and(eq(transactions.walletId, wallet.id), eq(transactions.categoryId, id)))
+  // Atomic: reassign + delete dalam satu transaction
+  await db.transaction(async (tx) => {
+    await tx
+      .update(transactions)
+      .set({ categoryId: uncategorized.id })
+      .where(and(eq(transactions.walletId, wallet.id), eq(transactions.categoryId, id)))
 
-  await db.delete(categories).where(eq(categories.id, id))
+    await tx.delete(categories).where(eq(categories.id, id))
+  })
 
   return { success: true }
 })

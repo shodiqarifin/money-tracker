@@ -34,6 +34,7 @@ const topCategoriesWithPercent = computed(() => {
 </script>
 
 <template>
+  <ClientOnly>
   <div class="max-w-3xl mx-auto p-4 space-y-6">
 
     <!-- Header -->
@@ -157,4 +158,10 @@ const topCategoriesWithPercent = computed(() => {
 
     </template>
   </div>
+  <template #fallback>
+    <div class="max-w-3xl mx-auto p-4">
+      <div class="text-center py-12 text-gray-400">Memuat...</div>
+    </div>
+  </template>
+  </ClientOnly>
 </template>
