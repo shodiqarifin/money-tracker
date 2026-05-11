@@ -2,6 +2,22 @@
 
 Aplikasi pencatat keuangan pribadi berbasis web yang dibangun dengan Nuxt 4.
 
+
+
+## **Screenshot**
+
+| Login | Daftar |
+|---|---|
+| ![Login](public/screenshot/login.png) | ![Daftar](public/screenshot/daftar.png) |
+
+| Dashboard | Transaksi |
+|---|---|
+| ![Dashboard](public/screenshot/dashboard.png) | ![Transaksi](public/screenshot/transaksi.png) |
+
+| Tambah Transaksi | Kategori |
+|---|---|
+| ![Tambah Transaksi](public/screenshot/tambah-transaksi.png) | ![Kategori](public/screenshot/kategori.png) |
+
 ## Tech Stack
 
 - **Framework**: [Nuxt 4](https://nuxt.com) + Vue 3
