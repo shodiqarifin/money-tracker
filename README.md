@@ -8,15 +8,15 @@ Aplikasi pencatat keuangan pribadi berbasis web yang dibangun dengan Nuxt 4.
 
 | Login | Daftar |
 |---|---|
-| ![Login](public/screenshot/login.png) | ![Daftar](public/screenshot/daftar.png) |
+| ![Login](https://raw.githubusercontent.com/shodiqarifin/money-tracker/master/public/screenshot/login.png) | ![Daftar](https://raw.githubusercontent.com/shodiqarifin/money-tracker/master/public/screenshot/daftar.png) |
 
 | Dashboard | Transaksi |
 |---|---|
-| ![Dashboard](public/screenshot/dashboard.png) | ![Transaksi](public/screenshot/transaksi.png) |
+| ![Dashboard](https://raw.githubusercontent.com/shodiqarifin/money-tracker/master/public/screenshot/dashboard.png) | ![Transaksi](https://raw.githubusercontent.com/shodiqarifin/money-tracker/master/public/screenshot/transaksi.png) |
 
 | Tambah Transaksi | Kategori |
 |---|---|
-| ![Tambah Transaksi](public/screenshot/tambah-transaksi.png) | ![Kategori](public/screenshot/kategori.png) |
+| ![Tambah Transaksi](https://raw.githubusercontent.com/shodiqarifin/money-tracker/master/public/screenshot/tambah-transaksi.png) | ![Kategori](https://raw.githubusercontent.com/shodiqarifin/money-tracker/master/public/screenshot/kategori.png) |
 
 ## Tech Stack
 
