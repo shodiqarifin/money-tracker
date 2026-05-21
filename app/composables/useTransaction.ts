@@ -16,7 +16,7 @@ export function useTransactions() {
     try {
       const { data, error: err } = await supabase
         .from('transactions')
-        .select('id, amount, description, date, created_at, category:categories(id, name, type)')
+        .select('id, amount, description, date, created_at, updated_at, category:categories(id, name, type), creator:created_by(name), editor:updated_by(name)')
         .eq('wallet_id', walletId)
         .order('date', { ascending: false })
       if (err) throw err
@@ -24,6 +24,8 @@ export function useTransactions() {
         ...t,
         createdAt: t.created_at,
         category: t.category as Transaction['category'],
+        creatorName: (t.creator as any)?.name ?? null,
+        editorName: (t.editor as any)?.name ?? null,
       }))
     } catch (e: any) {
       error.value = e?.message || 'Gagal memuat transaksi'
@@ -34,6 +36,7 @@ export function useTransactions() {
 
   async function createTransaction(input: CreateTransactionInput) {
     const walletId = activeWalletId.value
+    const user = useSupabaseUser()
     if (!walletId) throw new Error('Wallet belum dipilih')
     const { error: err } = await supabase.from('transactions').insert({
       wallet_id: walletId,
@@ -41,13 +44,18 @@ export function useTransactions() {
       amount: input.amount,
       description: input.description || null,
       date: new Date(input.date).toISOString(),
+      created_by: user.value?.id ?? null,
     })
     if (err) throw err
     await fetchTransactions()
   }
 
   async function updateTransaction(id: string, input: Partial<CreateTransactionInput>) {
-    const patch: Record<string, any> = { updated_at: new Date().toISOString() }
+    const user = useSupabaseUser()
+    const patch: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+      updated_by: user.value?.id ?? null,
+    }
     if (input.amount !== undefined) patch.amount = input.amount
     if (input.categoryId !== undefined) patch.category_id = input.categoryId
     if (input.description !== undefined) patch.description = input.description || null

@@ -134,6 +134,13 @@ function formatDate(dateStr) {
                             {{ tx.description }}
                         </div>
                         <div class="text-xs text-muted mt-0.5">{{ formatDate(tx.date) }}</div>
+                        <div class="text-xs text-muted/60 mt-0.5 flex items-center gap-1.5">
+                          <span v-if="tx.creatorName">{{ tx.creatorName }}</span>
+                          <template v-if="tx.editorName && tx.editorName !== tx.creatorName">
+                            <span>·</span>
+                            <span>diedit {{ tx.editorName }}</span>
+                          </template>
+                        </div>
                     </div>
                 </div>
 
