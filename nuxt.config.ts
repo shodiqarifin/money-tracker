@@ -4,6 +4,11 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
   ssr: false,
+  app: {
+    head: {
+      link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+    },
+  },
   css: ["./app/assets/css/main.css"],
   modules: ["@nuxtjs/supabase"],
   supabase: {
