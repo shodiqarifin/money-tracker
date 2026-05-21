@@ -1,15 +1,15 @@
 export function useDashboard() {
   const supabase = useSupabaseClient()
-  const { getWalletId } = useWallet()
+  const activeWalletId = useState<string | null>('activeWalletId')
 
   const summary = ref<any>(null)
   const pending = ref(false)
 
   async function fetchSummary() {
+    const walletId = activeWalletId.value
+    if (!walletId) return
     pending.value = true
     try {
-      const walletId = await getWalletId()
-
       const { data: allTx } = await supabase
         .from('transactions')
         .select('id, amount, description, date, category:categories(id, name, type, is_system)')
@@ -36,11 +36,11 @@ export function useDashboard() {
         else if (type === 'expense') monthExpense += Number(tx.amount)
       }
 
-      const catMap = new Map<string, { name: string; total: number }>()
+      const catMap = new Map<string, { id: string; name: string; total: number }>()
       for (const tx of thisMonthTx) {
         const cat = tx.category as any
         if (cat?.type === 'expense' && !cat?.is_system) {
-          const entry = catMap.get(cat.id) ?? { name: cat.name, total: 0 }
+          const entry = catMap.get(cat.id) ?? { id: cat.id, name: cat.name, total: 0 }
           entry.total += Number(tx.amount)
           catMap.set(cat.id, entry)
         }

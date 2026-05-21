@@ -2,17 +2,18 @@ import type { Transaction, CreateTransactionInput } from '~/types/transaction'
 
 export function useTransactions() {
   const supabase = useSupabaseClient()
-  const { getWalletId } = useWallet()
+  const activeWalletId = useState<string | null>('activeWalletId')
 
   const transactions = ref<Transaction[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
   async function fetchTransactions() {
+    const walletId = activeWalletId.value
+    if (!walletId) return
     loading.value = true
     error.value = null
     try {
-      const walletId = await getWalletId()
       const { data, error: err } = await supabase
         .from('transactions')
         .select('id, amount, description, date, created_at, category:categories(id, name, type)')
@@ -32,7 +33,8 @@ export function useTransactions() {
   }
 
   async function createTransaction(input: CreateTransactionInput) {
-    const walletId = await getWalletId()
+    const walletId = activeWalletId.value
+    if (!walletId) throw new Error('Wallet belum dipilih')
     const { error: err } = await supabase.from('transactions').insert({
       wallet_id: walletId,
       category_id: input.categoryId,

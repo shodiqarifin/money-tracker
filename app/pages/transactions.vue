@@ -13,10 +13,15 @@ const {
 
 const { fetchCategories } = useCategories()
 const categories = ref<any[]>([])
-onMounted(async () => {
+const activeWalletId = useState('activeWalletId')
+
+async function loadAll() {
   await fetchTransactions()
   categories.value = await fetchCategories()
-})
+}
+
+onMounted(() => loadAll())
+watch(activeWalletId, (id) => { if (id) loadAll() })
 
 const showModal = ref(false)
 const editingTransaction = ref(null)

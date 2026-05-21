@@ -1,9 +1,10 @@
 export function useCategories() {
   const supabase = useSupabaseClient()
-  const { getWalletId } = useWallet()
+  const activeWalletId = useState<string | null>('activeWalletId')
 
   async function fetchCategories() {
-    const walletId = await getWalletId()
+    const walletId = activeWalletId.value
+    if (!walletId) return []
     const { data, error } = await supabase
       .from('categories')
       .select('id, name, type, is_preset, is_system')
@@ -22,7 +23,8 @@ export function useCategories() {
   }
 
   async function createCategory(name: string, type: 'income' | 'expense') {
-    const walletId = await getWalletId()
+    const walletId = activeWalletId.value
+    if (!walletId) throw new Error('Wallet belum dipilih')
     const { error } = await supabase
       .from('categories')
       .insert({ wallet_id: walletId, name: name.trim(), type, is_preset: false, is_system: false })
@@ -38,7 +40,8 @@ export function useCategories() {
   }
 
   async function deleteCategory(id: string, type: 'income' | 'expense') {
-    const walletId = await getWalletId()
+    const walletId = activeWalletId.value
+    if (!walletId) throw new Error('Wallet belum dipilih')
     const { data: systemCat, error: sysErr } = await supabase
       .from('categories')
       .select('id')

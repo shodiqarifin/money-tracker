@@ -2,6 +2,7 @@
 definePageMeta({ middleware: "auth" })
 
 const { fetchCategories, createCategory, updateCategory, deleteCategory } = useCategories()
+const { budgetMap, fetchBudgets, upsertBudget, deleteBudget, currentMonthDate } = useBudgets()
 
 const categories = ref<any[]>([])
 const loading = ref(false)
@@ -14,11 +15,19 @@ const form = reactive({
   type: "expense",
 })
 
+const activeWalletId = useState('activeWalletId')
+watch(activeWalletId, (id) => { if (id) loadCategories() })
+
+const budgetInputs = reactive<Record<string, string>>({})
+const budgetEditing = reactive<Record<string, boolean>>({})
+const budgetSaving = reactive<Record<string, boolean>>({})
+
 async function loadCategories() {
   loading.value = true
   error.value = null
   try {
     categories.value = await fetchCategories()
+    await fetchBudgets()
   } catch (e: any) {
     error.value = e?.message || "Gagal memuat kategori"
   } finally {
@@ -43,7 +52,6 @@ async function handleSubmit() {
     alert("Nama kategori wajib diisi")
     return
   }
-
   try {
     if (editingCategory.value) {
       await updateCategory(editingCategory.value.id, form.name)
@@ -65,6 +73,52 @@ async function handleDelete(category: any) {
   } catch (e: any) {
     alert(e?.message || "Gagal hapus kategori")
   }
+}
+
+function startEditBudget(categoryId: string) {
+  const existing = budgetMap.value[categoryId]
+  budgetInputs[categoryId] = existing ? String(existing.amount) : ''
+  budgetEditing[categoryId] = true
+}
+
+function cancelEditBudget(categoryId: string) {
+  budgetEditing[categoryId] = false
+  budgetInputs[categoryId] = ''
+}
+
+async function saveBudget(categoryId: string) {
+  const amount = parseFloat(budgetInputs[categoryId])
+  if (isNaN(amount) || amount <= 0) {
+    alert("Budget harus berupa angka positif")
+    return
+  }
+  budgetSaving[categoryId] = true
+  try {
+    await upsertBudget(categoryId, amount, currentMonthDate())
+    budgetEditing[categoryId] = false
+  } catch (e: any) {
+    alert(e?.message || "Gagal menyimpan budget")
+  } finally {
+    budgetSaving[categoryId] = false
+  }
+}
+
+async function handleDeleteBudget(categoryId: string) {
+  const budget = budgetMap.value[categoryId]
+  if (!budget) return
+  try {
+    await deleteBudget(budget.id)
+  } catch (e: any) {
+    alert(e?.message || "Gagal hapus budget")
+  }
+}
+
+function formatRupiah(amount: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount)
 }
 
 const incomeCategories = computed(() => categories.value.filter((c) => c.type === "income"))
@@ -124,32 +178,86 @@ onMounted(() => loadCategories())
 
       <!-- Pengeluaran -->
       <div>
-        <h2 class="text-xs font-semibold text-muted uppercase tracking-wider mb-2">Pengeluaran</h2>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-semibold text-muted uppercase tracking-wider">Pengeluaran</h2>
+          <span class="text-xs text-muted">Budget bulan ini</span>
+        </div>
         <div v-if="expenseCategories.length === 0" class="text-sm text-muted py-2">Belum ada kategori pengeluaran.</div>
         <div class="space-y-1">
           <div
             v-for="cat in expenseCategories"
             :key="cat.id"
-            class="flex items-center justify-between px-4 py-3 bg-surface border border-white/10 rounded-xl hover:border-white/20 transition-colors"
+            class="px-4 py-3 bg-surface border border-white/10 rounded-xl hover:border-white/20 transition-colors"
           >
-            <div class="flex items-center gap-3">
-              <div class="w-2 h-2 rounded-full bg-red-400" />
-              <span class="text-sm font-medium text-foreground">{{ cat.name }}</span>
-              <span v-if="cat.isPreset" class="text-xs text-muted">preset</span>
-            </div>
-            <div class="flex gap-1">
-              <button
-                @click="openEditModal(cat)"
-                class="text-xs text-muted hover:text-foreground px-2 py-1 rounded hover:bg-white/5"
-              >
-                Edit
-              </button>
-              <button
-                @click="handleDelete(cat)"
-                class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10"
-              >
-                Hapus
-              </button>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full bg-red-400" />
+                <span class="text-sm font-medium text-foreground">{{ cat.name }}</span>
+                <span v-if="cat.isPreset" class="text-xs text-muted">preset</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <!-- Budget display / edit -->
+                <template v-if="!budgetEditing[cat.id]">
+                  <button
+                    v-if="budgetMap[cat.id]"
+                    @click="startEditBudget(cat.id)"
+                    class="text-xs text-muted hover:text-foreground px-2 py-1 rounded hover:bg-white/5"
+                  >
+                    {{ formatRupiah(budgetMap[cat.id].amount) }}
+                  </button>
+                  <button
+                    v-else
+                    @click="startEditBudget(cat.id)"
+                    class="text-xs text-muted/50 hover:text-muted px-2 py-1 rounded hover:bg-white/5"
+                  >
+                    + Budget
+                  </button>
+                </template>
+                <template v-else>
+                  <input
+                    v-model="budgetInputs[cat.id]"
+                    type="number"
+                    min="1"
+                    placeholder="Nominal budget"
+                    class="w-32 bg-background border border-white/20 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary"
+                    @keyup.enter="saveBudget(cat.id)"
+                    @keyup.escape="cancelEditBudget(cat.id)"
+                  />
+                  <button
+                    @click="saveBudget(cat.id)"
+                    :disabled="budgetSaving[cat.id]"
+                    class="text-xs text-green-400 hover:text-green-300 px-1 py-1 disabled:opacity-50"
+                  >
+                    {{ budgetSaving[cat.id] ? '...' : '✓' }}
+                  </button>
+                  <button
+                    @click="cancelEditBudget(cat.id)"
+                    class="text-xs text-muted hover:text-foreground px-1 py-1"
+                  >
+                    ✕
+                  </button>
+                  <button
+                    v-if="budgetMap[cat.id]"
+                    @click="handleDeleteBudget(cat.id)"
+                    class="text-xs text-red-400 hover:text-red-300 px-1 py-1"
+                  >
+                    Hapus
+                  </button>
+                </template>
+
+                <button
+                  @click="openEditModal(cat)"
+                  class="text-xs text-muted hover:text-foreground px-2 py-1 rounded hover:bg-white/5"
+                >
+                  Edit
+                </button>
+                <button
+                  @click="handleDelete(cat)"
+                  class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10"
+                >
+                  Hapus
+                </button>
+              </div>
             </div>
           </div>
         </div>

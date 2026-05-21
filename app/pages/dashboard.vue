@@ -2,8 +2,16 @@
 definePageMeta({ middleware: "auth" })
 
 const { summary, pending, fetchSummary } = useDashboard()
+const { budgetMap, fetchBudgets } = useBudgets()
+const activeWalletId = useState('activeWalletId')
 
-onMounted(() => fetchSummary())
+async function load() {
+  await fetchSummary()
+  await fetchBudgets()
+}
+
+onMounted(() => load())
+watch(activeWalletId, (id) => { if (id) load() })
 
 const currentMonth = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(new Date())
 
@@ -25,10 +33,17 @@ function formatDate(dateStr) {
 const topCategoriesWithPercent = computed(() => {
   if (!summary.value?.topCategories?.length) return []
   const totalExpense = summary.value.thisMonth.expense || 0
-  return summary.value.topCategories.map((cat) => ({
-    ...cat,
-    percent: totalExpense > 0 ? Math.round((cat.total / totalExpense) * 100) : 0,
-  }))
+  return summary.value.topCategories.map((cat) => {
+    const budget = budgetMap.value[cat.id]
+    const budgetAmount = budget?.amount ?? null
+    const budgetPercent = budgetAmount ? Math.min(Math.round((cat.total / budgetAmount) * 100), 100) : null
+    return {
+      ...cat,
+      percent: totalExpense > 0 ? Math.round((cat.total / totalExpense) * 100) : 0,
+      budgetAmount,
+      budgetPercent,
+    }
+  })
 })
 </script>
 
@@ -94,7 +109,7 @@ const topCategoriesWithPercent = computed(() => {
           Belum ada pengeluaran bulan ini.
         </div>
 
-        <div v-else class="space-y-3">
+        <div v-else class="space-y-4">
           <div v-for="cat in topCategoriesWithPercent" :key="cat.name">
             <div class="flex items-center justify-between text-sm mb-1">
               <span class="font-medium text-foreground">{{ cat.name }}</span>
@@ -103,12 +118,32 @@ const topCategoriesWithPercent = computed(() => {
                 <span class="font-semibold text-foreground">{{ formatRupiah(cat.total) }}</span>
               </div>
             </div>
+            <!-- Dari total pengeluaran -->
             <div class="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
                 class="h-full bg-primary rounded-full transition-all duration-500"
                 :style="{ width: cat.percent + '%' }"
               />
             </div>
+            <!-- Budget progress (hanya tampil kalau ada budget) -->
+            <template v-if="cat.budgetAmount !== null">
+              <div class="flex items-center justify-between mt-1.5">
+                <span class="text-xs text-muted">Budget: {{ formatRupiah(cat.budgetAmount) }}</span>
+                <span
+                  class="text-xs font-medium"
+                  :class="cat.budgetPercent >= 100 ? 'text-red-400' : cat.budgetPercent >= 80 ? 'text-yellow-400' : 'text-green-400'"
+                >
+                  {{ cat.budgetPercent }}% terpakai
+                </span>
+              </div>
+              <div class="h-1 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="cat.budgetPercent >= 100 ? 'bg-red-400' : cat.budgetPercent >= 80 ? 'bg-yellow-400' : 'bg-green-400'"
+                  :style="{ width: cat.budgetPercent + '%' }"
+                />
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -134,7 +169,7 @@ const topCategoriesWithPercent = computed(() => {
           >
             <div class="flex items-center gap-3">
               <div
-                class="w-2 h-2 rounded-full flex-shrink-0"
+                class="w-2 h-2 rounded-full shrink-0"
                 :class="tx.category?.type === 'income' ? 'bg-green-400' : 'bg-red-400'"
               />
               <div>
