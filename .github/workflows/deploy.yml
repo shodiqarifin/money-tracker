@@ -5,28 +5,37 @@ on:
     branches: [prod]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
 
-      - run: npm run generate
+      - run: npx nuxt build --preset github_pages
         env:
           NUXT_APP_BASE_URL: /money-tracker/
           NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NUXT_PUBLIC_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      - uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .output/public
+          path: .output/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
