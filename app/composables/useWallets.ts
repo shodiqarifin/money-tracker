@@ -16,10 +16,12 @@ export function useWallets() {
 
   async function fetchWallets() {
     walletsLoading.value = true
+    const user = useSupabaseUser()
     try {
       const { data, error } = await supabase
         .from('wallet_members')
         .select('role, wallet:wallets(id, name, type, user_id)')
+        .eq('user_id', user.value?.id ?? '')
       if (error) throw error
       wallets.value = (data ?? []).map((m: any) => ({
         ...m.wallet,
@@ -62,9 +64,16 @@ export function useWallets() {
   async function inviteMember(walletId: string, email: string) {
     const user = useSupabaseUser()
     if (!user.value) throw new Error('Not authenticated')
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const { data, error } = await supabase
       .from('wallet_invitations')
-      .insert({ wallet_id: walletId, invited_email: email.trim().toLowerCase(), invited_by: user.value.id })
+      .upsert(
+        { wallet_id: walletId, invited_email: email.trim().toLowerCase(), invited_by: user.value.id, token, status: 'pending', expires_at: expiresAt },
+        { onConflict: 'wallet_id,invited_email' }
+      )
       .select('token')
       .single()
     if (error) throw error
@@ -127,10 +136,13 @@ export function useWallets() {
   async function fetchWalletMembers(walletId: string) {
     const { data, error } = await supabase
       .from('wallet_members')
-      .select('user_id, role, joined_at')
+      .select('user_id, role, joined_at, profile:profiles(name)')
       .eq('wallet_id', walletId)
     if (error) throw error
-    return data ?? []
+    return (data ?? []).map((m: any) => ({
+      ...m,
+      display_name: m.profile?.name || null,
+    }))
   }
 
   return {

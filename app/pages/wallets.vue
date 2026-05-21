@@ -159,12 +159,12 @@ async function handleAcceptInvitation(invitation: any) {
       .from('wallet_invitations')
       .update({ status: 'accepted' })
       .eq('id', invitation.id)
-    if (err) throw err
+    if (err && err.code !== '23505') throw err
 
     const { error: memberErr } = await supabase
       .from('wallet_members')
       .insert({ wallet_id: invitation.wallet_id, user_id: user.value!.id, role: 'member' })
-    if (memberErr) throw memberErr
+    if (memberErr && memberErr.code !== '23505') throw memberErr
 
     pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
     await fetchWallets()
@@ -328,7 +328,7 @@ onMounted(() => load())
                     {{ member.user_id === user?.id ? 'K' : 'A' }}
                   </div>
                   <span class="text-sm text-foreground">
-                    {{ member.user_id === user?.id ? 'Kamu' : member.user_id.slice(0, 8) + '...' }}
+                    {{ member.user_id === user?.id ? 'Kamu' : (member.display_name || member.user_id.slice(0, 8) + '...') }}
                   </span>
                   <span class="text-xs text-muted capitalize">{{ member.role }}</span>
                 </div>

@@ -68,12 +68,12 @@ async function accept() {
       .from('wallet_invitations')
       .update({ status: 'accepted' })
       .eq('id', invitation.value.id)
-    if (updateErr) throw updateErr
+    if (updateErr && updateErr.code !== '23505') throw updateErr
 
     const { error: memberErr } = await supabase
       .from('wallet_members')
       .insert({ wallet_id: invitation.value.wallet_id, user_id: user.value.id, role: 'member' })
-    if (memberErr) throw memberErr
+    if (memberErr && memberErr.code !== '23505') throw memberErr
 
     done.value = 'accepted'
   } catch (e: any) {
