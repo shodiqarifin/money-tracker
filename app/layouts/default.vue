@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { onClickOutside } from '@vueuse/core'
 
 const { displayName, signOut, isLoggedIn } = useAuthClient()
@@ -6,14 +6,14 @@ const { wallets, activeWalletId, activeWallet, fetchWallets, switchWallet } = us
 const route = useRoute()
 
 const showWalletDropdown = ref(false)
-const walletDropdownRef = ref(null)
+const walletDropdownRef = ref<HTMLElement | null>(null)
 
 onClickOutside(walletDropdownRef, () => { showWalletDropdown.value = false })
 
 async function handleLogout() {
   await signOut()
   activeWalletId.value = null
-  navigateTo("/login")
+  navigateTo('/login')
 }
 
 watch(isLoggedIn, async (loggedIn) => {
@@ -22,7 +22,7 @@ watch(isLoggedIn, async (loggedIn) => {
   }
 }, { immediate: true })
 
-async function handleSwitchWallet(id) {
+function handleSwitchWallet(id: string) {
   switchWallet(id)
   showWalletDropdown.value = false
 }

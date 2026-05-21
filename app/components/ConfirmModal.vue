@@ -5,6 +5,7 @@ defineProps<{
   confirmLabel?: string
   confirmClass?: string
   loading?: boolean
+  error?: string | null
 }>()
 
 defineEmits<{
@@ -18,6 +19,7 @@ defineEmits<{
     <div class="bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-xl">
       <h3 class="text-base font-semibold text-foreground mb-2">{{ title }}</h3>
       <p class="text-sm text-muted leading-relaxed mb-6">{{ message }}</p>
+      <p v-if="error" class="text-sm text-red-400 mb-4">{{ error }}</p>
       <div class="flex gap-2">
         <button
           @click="$emit('cancel')"

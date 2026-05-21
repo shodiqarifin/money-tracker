@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Wallet, WalletMember, WalletInvitation, PendingInvitation } from '~/types/wallet'
+
 definePageMeta({ middleware: 'auth' })
 
 const {
@@ -17,6 +19,7 @@ const {
   fetchWalletMembers,
 } = useWallets()
 
+const supabase = useSupabaseClient()
 const user = useSupabaseUser()
 
 const loading = ref(false)
@@ -25,43 +28,55 @@ const error = ref<string | null>(null)
 const showCreateModal = ref(false)
 const newWalletName = ref('')
 const createLoading = ref(false)
+const createError = ref<string | null>(null)
 
 const expandedWalletId = ref<string | null>(null)
-const walletMembers = ref<Record<string, any[]>>({})
-const walletInvitations = ref<Record<string, any[]>>({})
-
-const pendingInvitations = ref<any[]>([])
+const walletMembers = ref<Record<string, WalletMember[]>>({})
+const walletInvitations = ref<Record<string, WalletInvitation[]>>({})
+const pendingInvitations = ref<PendingInvitation[]>([])
 
 const editingWalletId = ref<string | null>(null)
 const editingWalletName = ref('')
+const renameError = ref<string | null>(null)
 
-function startRename(wallet: any) {
+function startRename(wallet: Wallet) {
   editingWalletId.value = wallet.id
   editingWalletName.value = wallet.name
+  renameError.value = null
 }
 
 async function confirmRename(walletId: string) {
   if (!editingWalletName.value.trim()) return
+  renameError.value = null
   try {
     await renameWallet(walletId, editingWalletName.value)
-  } catch (e: any) {
-    alert(e?.message || 'Gagal ubah nama wallet')
+  } catch (e: unknown) {
+    renameError.value = e instanceof Error ? e.message : 'Gagal ubah nama wallet'
   } finally {
     editingWalletId.value = null
   }
 }
 
-const confirmModal = ref<{ title: string; message: string; confirmLabel?: string; onConfirm: () => Promise<void> } | null>(null)
+interface ConfirmAction {
+  title: string
+  message: string
+  confirmLabel?: string
+  onConfirm: () => Promise<void>
+}
+
+const confirmModal = ref<ConfirmAction | null>(null)
 const confirmLoading = ref(false)
+const confirmError = ref<string | null>(null)
 
 async function runConfirm() {
   if (!confirmModal.value) return
   confirmLoading.value = true
+  confirmError.value = null
   try {
     await confirmModal.value.onConfirm()
     confirmModal.value = null
-  } catch (e: any) {
-    alert(e?.message || 'Terjadi kesalahan')
+  } catch (e: unknown) {
+    confirmError.value = e instanceof Error ? e.message : 'Terjadi kesalahan'
   } finally {
     confirmLoading.value = false
   }
@@ -72,6 +87,8 @@ const inviteWalletId = ref<string | null>(null)
 const inviteEmail = ref('')
 const inviteLoading = ref(false)
 const inviteLink = ref<string | null>(null)
+const inviteError = ref<string | null>(null)
+const copiedInviteLink = ref(false)
 
 async function load() {
   loading.value = true
@@ -79,8 +96,8 @@ async function load() {
   try {
     await fetchWallets()
     pendingInvitations.value = await fetchPendingInvitations()
-  } catch (e: any) {
-    error.value = e?.message || 'Gagal memuat data'
+  } catch (e: unknown) {
+    error.value = e instanceof Error ? e.message : 'Gagal memuat data'
   } finally {
     loading.value = false
   }
@@ -103,13 +120,14 @@ async function toggleWalletDetails(walletId: string) {
 async function handleCreateWallet() {
   if (!newWalletName.value.trim()) return
   createLoading.value = true
+  createError.value = null
   try {
     const id = await createWallet(newWalletName.value)
     activeWalletId.value = id
     showCreateModal.value = false
     newWalletName.value = ''
-  } catch (e: any) {
-    alert(e?.message || 'Gagal membuat wallet')
+  } catch (e: unknown) {
+    createError.value = e instanceof Error ? e.message : 'Gagal membuat wallet'
   } finally {
     createLoading.value = false
   }
@@ -119,22 +137,23 @@ function openInviteModal(walletId: string) {
   inviteWalletId.value = walletId
   inviteEmail.value = ''
   inviteLink.value = null
+  inviteError.value = null
   showInviteModal.value = true
 }
 
 async function handleInvite() {
   if (!inviteEmail.value.trim() || !inviteWalletId.value) return
   inviteLoading.value = true
+  inviteError.value = null
   try {
     const token = await inviteMember(inviteWalletId.value, inviteEmail.value)
-    const origin = window.location.origin
-    inviteLink.value = `${origin}/invite?token=${token}`
+    inviteLink.value = `${window.location.origin}/invite?token=${token}`
     inviteEmail.value = ''
     if (expandedWalletId.value === inviteWalletId.value) {
       walletInvitations.value[inviteWalletId.value] = await fetchWalletInvitations(inviteWalletId.value)
     }
-  } catch (e: any) {
-    alert(e?.message || 'Gagal kirim undangan')
+  } catch (e: unknown) {
+    inviteError.value = e instanceof Error ? e.message : 'Gagal kirim undangan'
   } finally {
     inviteLoading.value = false
   }
@@ -152,7 +171,7 @@ function handleCancelInvitation(walletId: string, invitationId: string) {
   }
 }
 
-function handleRemoveMember(walletId: string, userId: string, displayName: string) {
+function handleRemoveMember(walletId: string, userId: string, displayName: string | null) {
   confirmModal.value = {
     title: 'Hapus Member',
     message: `${displayName || 'Member ini'} akan dikeluarkan dari wallet dan tidak bisa akses datanya lagi.`,
@@ -182,36 +201,41 @@ function handleDeleteWallet(walletId: string, walletName: string) {
   }
 }
 
-const supabase = useSupabaseClient()
-
-function openAcceptInvitation(invitation: any) {
+function openAcceptInvitation(invitation: PendingInvitation) {
   confirmModal.value = {
     title: 'Terima Undangan',
-    message: `Bergabung ke wallet "${(invitation.wallet as any)?.name}"?`,
+    message: `Bergabung ke wallet "${invitation.wallet?.name}"?`,
     confirmLabel: 'Terima',
     onConfirm: () => handleAcceptInvitation(invitation),
   }
 }
 
-async function handleAcceptInvitation(invitation: any) {
-  const db = supabase as any
-  const { error: err } = await db.from('wallet_invitations').update({ status: 'accepted' }).eq('id', invitation.id)
-  if (err && err.code !== '23505') throw err
+async function handleAcceptInvitation(invitation: PendingInvitation) {
+  const { error: err } = await supabase
+    .from('wallet_invitations')
+    .update({ status: 'accepted' } as never)
+    .eq('id', invitation.id)
+  if (err && (err as { code?: string }).code !== '23505') throw err
 
-  const { error: memberErr } = await db.from('wallet_members').insert({ wallet_id: invitation.wallet_id, user_id: user.value!.id, role: 'member' })
-  if (memberErr && memberErr.code !== '23505') throw memberErr
+  const { error: memberErr } = await supabase
+    .from('wallet_members')
+    .insert({ wallet_id: invitation.wallet_id, user_id: user.value!.id, role: 'member' } as never)
+  if (memberErr && (memberErr as { code?: string }).code !== '23505') throw memberErr
 
   pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
   await fetchWallets()
 }
 
-function handleRejectInvitation(invitation: any) {
+function handleRejectInvitation(invitation: PendingInvitation) {
   confirmModal.value = {
     title: 'Tolak Undangan',
-    message: `Tolak undangan ke wallet "${(invitation.wallet as any)?.name}"?`,
+    message: `Tolak undangan ke wallet "${invitation.wallet?.name}"?`,
     confirmLabel: 'Tolak',
     onConfirm: async () => {
-      const { error: err } = await (supabase as any).from('wallet_invitations').update({ status: 'rejected' }).eq('id', invitation.id)
+      const { error: err } = await supabase
+        .from('wallet_invitations')
+        .update({ status: 'rejected' } as never)
+        .eq('id', invitation.id)
       if (err) throw err
       pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
     },
@@ -221,10 +245,11 @@ function handleRejectInvitation(invitation: any) {
 async function copyInviteLink() {
   if (!inviteLink.value) return
   await navigator.clipboard.writeText(inviteLink.value)
-  alert('Link undangan disalin!')
+  copiedInviteLink.value = true
+  setTimeout(() => { copiedInviteLink.value = false }, 2000)
 }
 
-function isOwner(wallet: any) {
+function isOwner(wallet: Wallet) {
   return wallet.user_id === user.value?.id
 }
 
@@ -257,7 +282,7 @@ onMounted(() => load())
             class="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
           >
             <div>
-              <p class="text-sm font-medium text-foreground">{{ (inv.wallet as any)?.name }}</p>
+              <p class="text-sm font-medium text-foreground">{{ inv.wallet?.name }}</p>
               <p class="text-xs text-muted">Diundang {{ new Date(inv.created_at).toLocaleDateString('id-ID') }}</p>
             </div>
             <div class="flex gap-2">
@@ -314,6 +339,7 @@ onMounted(() => load())
                 </span>
                 <span v-if="wallet.id === activeWalletId" class="text-xs text-primary">• Aktif</span>
               </div>
+              <p v-if="renameError && editingWalletId === null" class="text-xs text-red-400 mt-0.5">{{ renameError }}</p>
               <p class="text-xs text-muted mt-0.5 capitalize">{{ wallet.type }}</p>
             </div>
           </div>
@@ -343,7 +369,6 @@ onMounted(() => load())
 
         <!-- Expanded details (members + invitations) -->
         <div v-if="expandedWalletId === wallet.id" class="border-t border-white/10 px-5 py-4 space-y-4">
-          <!-- Members -->
           <div>
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-semibold text-muted uppercase tracking-wider">Anggota</span>
@@ -382,7 +407,6 @@ onMounted(() => load())
             </div>
           </div>
 
-          <!-- Pending invitations sent from this wallet -->
           <div v-if="isOwner(wallet) && walletInvitations[wallet.id]?.length">
             <span class="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">Undangan Tertunda</span>
             <div class="space-y-2">
@@ -423,6 +447,7 @@ onMounted(() => load())
           class="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-primary mb-4"
           @keyup.enter="handleCreateWallet"
         />
+        <p v-if="createError" class="text-sm text-red-400 mb-4">{{ createError }}</p>
         <div class="flex gap-2">
           <button
             @click="showCreateModal = false"
@@ -448,8 +473,9 @@ onMounted(() => load())
       :message="confirmModal.message"
       :confirm-label="confirmModal.confirmLabel"
       :loading="confirmLoading"
+      :error="confirmError"
       @confirm="runConfirm"
-      @cancel="confirmModal = null"
+      @cancel="confirmModal = null; confirmError = null"
     />
 
     <!-- Invite modal -->
@@ -478,15 +504,17 @@ onMounted(() => load())
           </button>
         </div>
 
-        <!-- Invite link result -->
+        <p v-if="inviteError" class="text-sm text-red-400 mb-4">{{ inviteError }}</p>
+
         <div v-if="inviteLink" class="bg-background border border-white/10 rounded-xl p-3 mb-4">
           <p class="text-xs text-muted mb-2">Bagikan link ini ke orang yang diundang:</p>
           <p class="text-xs text-foreground break-all font-mono">{{ inviteLink }}</p>
           <button
             @click="copyInviteLink"
-            class="mt-2 text-xs text-primary hover:text-primary/80 transition-colors"
+            class="mt-2 text-xs transition-colors"
+            :class="copiedInviteLink ? 'text-green-400' : 'text-primary hover:text-primary/80'"
           >
-            Salin Link
+            {{ copiedInviteLink ? 'Disalin! ✓' : 'Salin Link' }}
           </button>
         </div>
 
