@@ -4,7 +4,7 @@ const route = useRoute()
 
 async function handleLogout() {
   await signOut()
-  window.location.href = "/login"
+  navigateTo("/login")
 }
 </script>
 

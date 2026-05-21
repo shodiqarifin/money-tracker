@@ -5,7 +5,7 @@ const { signIn, user } = useAuthClient()
 
 if (import.meta.client) {
   watch(user, (u) => {
-    if (u) window.location.href = "/dashboard"
+    if (u) navigateTo("/dashboard")
   }, { immediate: true })
 }
 
@@ -33,7 +33,7 @@ async function handleLogin() {
     return
   }
 
-  window.location.href = "/dashboard"
+  navigateTo("/dashboard")
 }
 </script>
 
