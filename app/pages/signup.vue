@@ -45,55 +45,55 @@ async function handleSignup() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50">
-    <div class="w-full max-w-sm bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
-      <h1 class="text-xl font-bold mb-6">Buat Akun</h1>
+  <div class="min-h-screen flex items-center justify-center bg-background">
+    <div class="w-full max-w-sm bg-surface rounded-2xl p-8 border border-white/10">
+      <h1 class="text-xl font-bold text-foreground mb-6">Buat Akun</h1>
 
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+          <label class="block text-sm font-medium text-muted mb-1">Nama</label>
           <input
             v-model="form.name"
             type="text"
             placeholder="Nama kamu"
-            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+            class="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-primary"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label class="block text-sm font-medium text-muted mb-1">Email</label>
           <input
             v-model="form.email"
             type="email"
             placeholder="email@kamu.com"
-            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+            class="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-primary"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <label class="block text-sm font-medium text-muted mb-1">Password</label>
           <input
             v-model="form.password"
             type="password"
             placeholder="Minimal 8 karakter"
-            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+            class="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-primary"
           />
         </div>
 
-        <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+        <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
 
         <button
           @click="handleSignup"
           :disabled="loading"
-          class="w-full bg-black text-white py-2 rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+          class="w-full bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary-hover disabled:opacity-50 transition-colors"
         >
           {{ loading ? "Memproses..." : "Daftar" }}
         </button>
       </div>
 
-      <p class="text-center text-sm text-gray-500 mt-6">
+      <p class="text-center text-sm text-muted mt-6">
         Sudah punya akun?
-        <NuxtLink to="/login" class="text-black font-medium hover:underline">Login</NuxtLink>
+        <NuxtLink to="/login" class="text-primary font-medium hover:underline">Login</NuxtLink>
       </p>
     </div>
   </div>
