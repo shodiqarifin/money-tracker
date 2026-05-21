@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 definePageMeta({ middleware: "auth" })
 
 const {
@@ -11,8 +11,12 @@ const {
     deleteTransaction,
 } = useTransactions()
 
-// Fetch categories untuk dropdown
-const { data: categories } = useFetch("/api/categories", { server: false })
+const { fetchCategories } = useCategories()
+const categories = ref<any[]>([])
+onMounted(async () => {
+  await fetchTransactions()
+  categories.value = await fetchCategories()
+})
 
 const showModal = ref(false)
 const editingTransaction = ref(null)
@@ -94,9 +98,6 @@ function formatDate(dateStr) {
     })
 }
 
-onMounted(async () => {
-  await fetchTransactions()
-})
 </script>
 
 <template>

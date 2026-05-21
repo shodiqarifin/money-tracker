@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
+  ssr: false,
   css: ["./app/assets/css/main.css"],
   modules: ["@nuxtjs/supabase"],
   supabase: {
@@ -13,8 +14,5 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: ["@vue/devtools-core", "@vue/devtools-kit", "@vueuse/core"],
     },
-  },
-  nitro: {
-    preset: "vercel",
   },
 });

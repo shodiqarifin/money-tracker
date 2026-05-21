@@ -1,9 +1,9 @@
 <script setup>
 definePageMeta({ middleware: "auth" })
 
-const { data: summary, pending, refresh } = useFetch("/api/dashboard/summary", {
-  server: false,
-})
+const { summary, pending, fetchSummary } = useDashboard()
+
+onMounted(() => fetchSummary())
 
 const currentMonth = new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric" }).format(new Date())
 

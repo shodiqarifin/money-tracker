@@ -1,24 +1,26 @@
-<script setup>
+<script setup lang="ts">
 definePageMeta({ middleware: "auth" })
 
-const categories = ref([])
+const { fetchCategories, createCategory, updateCategory, deleteCategory } = useCategories()
+
+const categories = ref<any[]>([])
 const loading = ref(false)
-const error = ref(null)
+const error = ref<string | null>(null)
 const showModal = ref(false)
-const editingCategory = ref(null)
+const editingCategory = ref<any>(null)
 
 const form = reactive({
   name: "",
   type: "expense",
 })
 
-async function fetchCategories() {
+async function loadCategories() {
   loading.value = true
   error.value = null
   try {
-    categories.value = await $fetch("/api/categories")
-  } catch (e) {
-    error.value = e?.data?.message || "Gagal memuat kategori"
+    categories.value = await fetchCategories()
+  } catch (e: any) {
+    error.value = e?.message || "Gagal memuat kategori"
   } finally {
     loading.value = false
   }
@@ -30,7 +32,7 @@ function openAddModal() {
   showModal.value = true
 }
 
-function openEditModal(category) {
+function openEditModal(category: any) {
   editingCategory.value = category
   Object.assign(form, { name: category.name, type: category.type })
   showModal.value = true
@@ -44,39 +46,31 @@ async function handleSubmit() {
 
   try {
     if (editingCategory.value) {
-      await $fetch(`/api/categories/${editingCategory.value.id}`, {
-        method: "PATCH",
-        body: { name: form.name },
-      })
+      await updateCategory(editingCategory.value.id, form.name)
     } else {
-      await $fetch("/api/categories", {
-        method: "POST",
-        body: { name: form.name, type: form.type },
-      })
+      await createCategory(form.name, form.type as 'income' | 'expense')
     }
     showModal.value = false
-    await fetchCategories()
-  } catch (e) {
-    alert(e?.data?.message || "Terjadi kesalahan")
+    await loadCategories()
+  } catch (e: any) {
+    alert(e?.message || "Terjadi kesalahan")
   }
 }
 
-async function handleDelete(category) {
+async function handleDelete(category: any) {
   if (!confirm(`Hapus kategori "${category.name}"? Transaksi yang ada akan dipindah ke Uncategorized.`)) return
   try {
-    await $fetch(`/api/categories/${category.id}`, { method: "DELETE" })
-    await fetchCategories()
-  } catch (e) {
-    alert(e?.data?.message || "Gagal hapus kategori")
+    await deleteCategory(category.id, category.type)
+    await loadCategories()
+  } catch (e: any) {
+    alert(e?.message || "Gagal hapus kategori")
   }
 }
 
 const incomeCategories = computed(() => categories.value.filter((c) => c.type === "income"))
 const expenseCategories = computed(() => categories.value.filter((c) => c.type === "expense"))
 
-onMounted(async () => {
-  await fetchCategories()
-})
+onMounted(() => loadCategories())
 </script>
 
 <template>
