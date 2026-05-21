@@ -133,6 +133,15 @@ export function useWallets() {
     return data ?? []
   }
 
+  async function deleteWallet(walletId: string) {
+    const { error } = await supabase.from('wallets').delete().eq('id', walletId)
+    if (error) throw error
+    wallets.value = wallets.value.filter(w => w.id !== walletId)
+    if (activeWalletId.value === walletId) {
+      activeWalletId.value = wallets.value[0]?.id ?? null
+    }
+  }
+
   async function fetchWalletMembers(walletId: string) {
     const { data, error } = await supabase
       .from('wallet_members')
@@ -153,6 +162,7 @@ export function useWallets() {
     fetchWallets,
     switchWallet,
     createWallet,
+    deleteWallet,
     renameWallet,
     inviteMember,
     cancelInvitation,

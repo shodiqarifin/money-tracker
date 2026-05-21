@@ -6,6 +6,7 @@ const {
   activeWalletId,
   fetchWallets,
   createWallet,
+  deleteWallet,
   renameWallet,
   inviteMember,
   cancelInvitation,
@@ -47,6 +48,22 @@ async function confirmRename(walletId: string) {
     alert(e?.message || 'Gagal ubah nama wallet')
   } finally {
     editingWalletId.value = null
+  }
+}
+
+const confirmModal = ref<{ title: string; message: string; confirmLabel?: string; onConfirm: () => Promise<void> } | null>(null)
+const confirmLoading = ref(false)
+
+async function runConfirm() {
+  if (!confirmModal.value) return
+  confirmLoading.value = true
+  try {
+    await confirmModal.value.onConfirm()
+    confirmModal.value = null
+  } catch (e: any) {
+    alert(e?.message || 'Terjadi kesalahan')
+  } finally {
+    confirmLoading.value = false
   }
 }
 
@@ -123,67 +140,81 @@ async function handleInvite() {
   }
 }
 
-async function handleCancelInvitation(walletId: string, invitationId: string) {
-  if (!confirm('Batalkan undangan ini?')) return
-  try {
-    await cancelInvitation(invitationId)
-    walletInvitations.value[walletId] = walletInvitations.value[walletId].filter(i => i.id !== invitationId)
-  } catch (e: any) {
-    alert(e?.message || 'Gagal membatalkan undangan')
+function handleCancelInvitation(walletId: string, invitationId: string) {
+  confirmModal.value = {
+    title: 'Batalkan Undangan',
+    message: 'Undangan ini akan dibatalkan dan link-nya tidak bisa dipakai lagi.',
+    confirmLabel: 'Batalkan',
+    onConfirm: async () => {
+      await cancelInvitation(invitationId)
+      walletInvitations.value[walletId] = walletInvitations.value[walletId].filter(i => i.id !== invitationId)
+    },
   }
 }
 
-async function handleRemoveMember(walletId: string, userId: string) {
-  if (!confirm('Hapus member ini dari wallet?')) return
-  try {
-    await removeMember(walletId, userId)
-    walletMembers.value[walletId] = walletMembers.value[walletId].filter(m => m.user_id !== userId)
-  } catch (e: any) {
-    alert(e?.message || 'Gagal hapus member')
+function handleRemoveMember(walletId: string, userId: string, displayName: string) {
+  confirmModal.value = {
+    title: 'Hapus Member',
+    message: `${displayName || 'Member ini'} akan dikeluarkan dari wallet dan tidak bisa akses datanya lagi.`,
+    confirmLabel: 'Hapus',
+    onConfirm: async () => {
+      await removeMember(walletId, userId)
+      walletMembers.value[walletId] = walletMembers.value[walletId].filter(m => m.user_id !== userId)
+    },
   }
 }
 
-async function handleLeaveWallet(walletId: string) {
-  if (!confirm('Keluar dari wallet ini? Kamu tidak akan bisa akses transaksinya lagi.')) return
-  try {
-    await leaveWallet(walletId)
-  } catch (e: any) {
-    alert(e?.message || 'Gagal keluar dari wallet')
+function handleLeaveWallet(walletId: string) {
+  confirmModal.value = {
+    title: 'Keluar dari Wallet',
+    message: 'Kamu tidak akan bisa akses transaksi wallet ini lagi setelah keluar.',
+    confirmLabel: 'Keluar',
+    onConfirm: async () => { await leaveWallet(walletId) },
+  }
+}
+
+function handleDeleteWallet(walletId: string, walletName: string) {
+  confirmModal.value = {
+    title: `Hapus "${walletName}"?`,
+    message: 'Semua transaksi, kategori, dan anggota di dalamnya akan ikut terhapus permanen.',
+    confirmLabel: 'Hapus Wallet',
+    onConfirm: async () => { await deleteWallet(walletId) },
+  }
+}
+
+const supabase = useSupabaseClient()
+
+function openAcceptInvitation(invitation: any) {
+  confirmModal.value = {
+    title: 'Terima Undangan',
+    message: `Bergabung ke wallet "${(invitation.wallet as any)?.name}"?`,
+    confirmLabel: 'Terima',
+    onConfirm: () => handleAcceptInvitation(invitation),
   }
 }
 
 async function handleAcceptInvitation(invitation: any) {
-  const supabase = useSupabaseClient()
-  try {
-    const { error: err } = await supabase
-      .from('wallet_invitations')
-      .update({ status: 'accepted' })
-      .eq('id', invitation.id)
-    if (err && err.code !== '23505') throw err
+  const db = supabase as any
+  const { error: err } = await db.from('wallet_invitations').update({ status: 'accepted' }).eq('id', invitation.id)
+  if (err && err.code !== '23505') throw err
 
-    const { error: memberErr } = await supabase
-      .from('wallet_members')
-      .insert({ wallet_id: invitation.wallet_id, user_id: user.value!.id, role: 'member' })
-    if (memberErr && memberErr.code !== '23505') throw memberErr
+  const { error: memberErr } = await db.from('wallet_members').insert({ wallet_id: invitation.wallet_id, user_id: user.value!.id, role: 'member' })
+  if (memberErr && memberErr.code !== '23505') throw memberErr
 
-    pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
-    await fetchWallets()
-  } catch (e: any) {
-    alert(e?.message || 'Gagal menerima undangan')
-  }
+  pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
+  await fetchWallets()
 }
 
-async function handleRejectInvitation(invitation: any) {
-  const supabase = useSupabaseClient()
-  try {
-    const { error: err } = await supabase
-      .from('wallet_invitations')
-      .update({ status: 'rejected' })
-      .eq('id', invitation.id)
-    if (err) throw err
-    pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
-  } catch (e: any) {
-    alert(e?.message || 'Gagal menolak undangan')
+function handleRejectInvitation(invitation: any) {
+  confirmModal.value = {
+    title: 'Tolak Undangan',
+    message: `Tolak undangan ke wallet "${(invitation.wallet as any)?.name}"?`,
+    confirmLabel: 'Tolak',
+    onConfirm: async () => {
+      const { error: err } = await (supabase as any).from('wallet_invitations').update({ status: 'rejected' }).eq('id', invitation.id)
+      if (err) throw err
+      pendingInvitations.value = pendingInvitations.value.filter(i => i.id !== invitation.id)
+    },
   }
 }
 
@@ -231,7 +262,7 @@ onMounted(() => load())
             </div>
             <div class="flex gap-2">
               <button
-                @click="handleAcceptInvitation(inv)"
+                @click="openAcceptInvitation(inv)"
                 class="text-xs bg-green-400/10 text-green-400 hover:bg-green-400/20 px-3 py-1.5 rounded-lg transition-colors"
               >
                 Terima
@@ -294,6 +325,13 @@ onMounted(() => load())
               {{ expandedWalletId === wallet.id ? 'Tutup' : 'Detail' }}
             </button>
             <button
+              v-if="isOwner(wallet)"
+              @click="handleDeleteWallet(wallet.id, wallet.name)"
+              class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+            >
+              Hapus
+            </button>
+            <button
               v-if="!isOwner(wallet)"
               @click="handleLeaveWallet(wallet.id)"
               class="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
@@ -334,7 +372,7 @@ onMounted(() => load())
                 </div>
                 <button
                   v-if="isOwner(wallet) && member.user_id !== user?.id"
-                  @click="handleRemoveMember(wallet.id, member.user_id)"
+                  @click="handleRemoveMember(wallet.id, member.user_id, member.display_name)"
                   class="text-xs text-red-400 hover:text-red-300 px-2 py-0.5 rounded hover:bg-red-500/10 transition-colors"
                 >
                   Hapus
@@ -402,6 +440,17 @@ onMounted(() => load())
         </div>
       </div>
     </div>
+
+    <!-- Confirm modal -->
+    <ConfirmModal
+      v-if="confirmModal"
+      :title="confirmModal.title"
+      :message="confirmModal.message"
+      :confirm-label="confirmModal.confirmLabel"
+      :loading="confirmLoading"
+      @confirm="runConfirm"
+      @cancel="confirmModal = null"
+    />
 
     <!-- Invite modal -->
     <div
