@@ -1,13 +1,11 @@
 <script setup>
 definePageMeta({ layout: false })
 
-const { signIn, session } = useAuthClient()
+const { signIn, user } = useAuthClient()
 
 if (import.meta.client) {
-  watch(session, (s) => {
-    if (s && !s.isPending && s.data?.user) {
-      window.location.href = "/dashboard"
-    }
+  watch(user, (u) => {
+    if (u) window.location.href = "/dashboard"
   }, { immediate: true })
 }
 
@@ -27,10 +25,7 @@ async function handleLogin() {
   }
 
   loading.value = true
-  const { error: authError } = await signIn.email({
-    email: form.email,
-    password: form.password,
-  })
+  const { error: authError } = await signIn(form.email, form.password)
 
   if (authError) {
     error.value = "Email atau password salah"

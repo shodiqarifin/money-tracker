@@ -1,13 +1,11 @@
 <script setup>
 definePageMeta({ layout: false })
 
-const { signUp, session } = useAuthClient()
+const { signUp, user } = useAuthClient()
 
 if (import.meta.client) {
-  watch(session, (s) => {
-    if (s && !s.isPending && s.data?.user) {
-      window.location.href = "/dashboard"
-    }
+  watch(user, (u) => {
+    if (u) window.location.href = "/dashboard"
   }, { immediate: true })
 }
 
@@ -32,11 +30,7 @@ async function handleSignup() {
   }
 
   loading.value = true
-  const { error: authError } = await signUp.email({
-    name: form.name,
-    email: form.email,
-    password: form.password,
-  })
+  const { error: authError } = await signUp(form.email, form.password, form.name)
 
   if (authError) {
     error.value = authError.message?.includes("already")

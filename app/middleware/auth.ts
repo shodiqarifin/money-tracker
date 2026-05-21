@@ -1,13 +1,9 @@
-import { until } from "@vueuse/core"
-
-export default defineNuxtRouteMiddleware(async () => {
+export default defineNuxtRouteMiddleware(() => {
   if (import.meta.server) return
 
-  const { session } = useAuthClient()
+  const user = useSupabaseUser()
 
-  await until(session).toMatch((s) => !!s && !s.isPending, { timeout: 5000, throwOnTimeout: false })
-
-  if (!session.value?.data?.user) {
+  if (!user.value) {
     return navigateTo("/login")
   }
 })

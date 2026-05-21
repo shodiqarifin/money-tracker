@@ -26,3 +26,6 @@ data/*.db
 
 # Blog/content context files (local only)
 BLOG_CONTEXT.md
+
+# Vercel
+.vercel

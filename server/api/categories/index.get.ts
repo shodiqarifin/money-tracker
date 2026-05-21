@@ -1,21 +1,30 @@
-import { and, eq } from "drizzle-orm"
-import { db } from "~~/server/utils/db"
-import { categories } from "~~/server/database/schema"
-import { getWalletByUserId } from "~~/server/utils/wallet"
+import { serverSupabaseClient } from "#supabase/server"
 
 export default defineEventHandler(async (event) => {
-  const session = event.context.session
-  if (!session?.user?.id) {
-    throw createError({ statusCode: 401, message: "Unauthorized" })
-  }
+  const user = event.context.user
+  if (!user?.id) throw createError({ statusCode: 401, message: "Unauthorized" })
 
-  const wallet = await getWalletByUserId(session.user.id)
+  const client = await serverSupabaseClient(event)
+  const wallet = await getWalletByUserId(event, user.id)
 
-  const result = await db
-    .select()
-    .from(categories)
-    .where(and(eq(categories.walletId, wallet.id), eq(categories.isSystem, false)))
-    .orderBy(categories.type, categories.name)
+  const { data, error } = await client
+    .from("categories")
+    .select("id, wallet_id, name, type, is_preset, is_system, created_at")
+    .eq("wallet_id", wallet.id)
+    .eq("is_system", false)
+    .order("type")
+    .order("name")
 
-  return result
+  if (error) throw createError({ statusCode: 500, message: error.message })
+
+  // Map snake_case → camelCase untuk konsistensi dengan frontend
+  return (data ?? []).map((cat) => ({
+    id: cat.id,
+    walletId: cat.wallet_id,
+    name: cat.name,
+    type: cat.type,
+    isPreset: cat.is_preset,
+    isSystem: cat.is_system,
+    createdAt: cat.created_at,
+  }))
 })

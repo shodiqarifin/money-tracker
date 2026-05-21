@@ -1,5 +1,5 @@
 <script setup>
-const { user, signOut } = useAuthClient()
+const { displayName, signOut } = useAuthClient()
 const route = useRoute()
 
 async function handleLogout() {
@@ -41,7 +41,7 @@ async function handleLogout() {
 
         <ClientOnly>
           <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500">{{ user?.name || user?.email }}</span>
+            <span class="text-sm text-gray-500">{{ displayName }}</span>
             <button
               @click="handleLogout"
               class="text-sm text-red-400 hover:text-red-600 transition-colors"

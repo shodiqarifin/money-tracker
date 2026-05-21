@@ -1,38 +1,26 @@
-import { and, eq } from "drizzle-orm"
-import { db } from "~~/server/utils/db"
-import { transactions, categories } from "~~/server/database/schema"
-import { getWalletByUserId } from "~~/server/utils/wallet"
+import { serverSupabaseClient } from "#supabase/server"
 
 export default defineEventHandler(async (event) => {
-  const session = event.context.session
-  if (!session?.user?.id) {
-    throw createError({ statusCode: 401, message: "Unauthorized" })
-  }
+  const user = event.context.user
+  if (!user?.id) throw createError({ statusCode: 401, message: "Unauthorized" })
 
   const id = getRouterParam(event, "id")
-  if (!id) {
-    throw createError({ statusCode: 400, message: "Transaction ID wajib diisi" })
-  }
+  if (!id) throw createError({ statusCode: 400, message: "Transaction ID wajib diisi" })
 
   const body = await readBody(event)
-  const wallet = await getWalletByUserId(session.user.id)
+  const client = await serverSupabaseClient(event)
+  const wallet = await getWalletByUserId(event, user.id)
 
-  // Verifikasi transaksi milik user ini
-  const existing = await db.query.transactions.findFirst({
-    where: and(
-      eq(transactions.id, id),
-      eq(transactions.walletId, wallet.id)
-    ),
-  })
+  const { data: existing } = await client
+    .from("transactions")
+    .select("id")
+    .eq("id", id)
+    .eq("wallet_id", wallet.id)
+    .single()
 
-  if (!existing) {
-    throw createError({ statusCode: 404, message: "Transaksi tidak ditemukan" })
-  }
+  if (!existing) throw createError({ statusCode: 404, message: "Transaksi tidak ditemukan" })
 
-  // Build update object — hanya update field yang dikirim
-  const updates: Partial<typeof existing> = {
-    updatedAt: new Date(),
-  }
+  const updates: Record<string, any> = { updated_at: new Date().toISOString() }
 
   if (body.amount !== undefined) {
     if (typeof body.amount !== "number" || body.amount <= 0) {
@@ -55,23 +43,25 @@ export default defineEventHandler(async (event) => {
     if (transactionDate > today) {
       throw createError({ statusCode: 400, message: "Tanggal transaksi tidak boleh di masa depan" })
     }
-    updates.date = transactionDate
+    updates.date = transactionDate.toISOString()
   }
 
   if (body.categoryId !== undefined) {
-    const category = await db.query.categories.findFirst({
-      where: eq(categories.id, body.categoryId),
-    })
-    if (!category || category.walletId !== wallet.id) {
+    const { data: category } = await client
+      .from("categories")
+      .select("id, wallet_id")
+      .eq("id", body.categoryId)
+      .single()
+
+    if (!category || category.wallet_id !== wallet.id) {
       throw createError({ statusCode: 400, message: "Kategori tidak valid" })
     }
-    updates.categoryId = body.categoryId
+    updates.category_id = body.categoryId
   }
 
-  await db
-    .update(transactions)
-    .set(updates)
-    .where(eq(transactions.id, id))
+  const { error } = await client.from("transactions").update(updates).eq("id", id)
+
+  if (error) throw createError({ statusCode: 500, message: error.message })
 
   return { success: true }
 })

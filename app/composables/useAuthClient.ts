@@ -1,14 +1,25 @@
-import { signIn, signOut, signUp, useSession } from "~~/lib/auth-client"
-
 export function useAuthClient() {
-  const session = useSession()
+  const supabase = useSupabaseClient()
+  const user = useSupabaseUser()
 
-  return {
-    signIn,
-    signUp,
-    signOut,
-    session,
-    user: computed(() => session.value?.data?.user ?? null),
-    isLoggedIn: computed(() => !!session.value?.data?.user),
+  const displayName = computed(() => user.value?.user_metadata?.name || user.value?.email || "")
+  const isLoggedIn = computed(() => !!user.value)
+
+  async function signIn(email: string, password: string) {
+    return supabase.auth.signInWithPassword({ email, password })
   }
+
+  async function signUp(email: string, password: string, name: string) {
+    return supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    })
+  }
+
+  async function signOut() {
+    return supabase.auth.signOut()
+  }
+
+  return { user, displayName, isLoggedIn, signIn, signUp, signOut }
 }

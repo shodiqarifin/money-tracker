@@ -1,14 +1,8 @@
-import { eq } from "drizzle-orm"
-import { nanoid } from "nanoid"
-import { db } from "~~/server/utils/db"
-import { categories } from "~~/server/database/schema"
-import { getWalletByUserId } from "~~/server/utils/wallet"
+import { serverSupabaseClient } from "#supabase/server"
 
 export default defineEventHandler(async (event) => {
-  const session = event.context.session
-  if (!session?.user?.id) {
-    throw createError({ statusCode: 401, message: "Unauthorized" })
-  }
+  const user = event.context.user
+  if (!user?.id) throw createError({ statusCode: 401, message: "Unauthorized" })
 
   const body = await readBody(event)
 
@@ -19,18 +13,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "Type harus income atau expense" })
   }
 
-  const wallet = await getWalletByUserId(session.user.id)
+  const client = await serverSupabaseClient(event)
+  const wallet = await getWalletByUserId(event, user.id)
 
-  const newCategory = {
-    id: nanoid(),
-    walletId: wallet.id,
-    name: body.name.trim(),
-    type: body.type as "income" | "expense",
-    isPreset: false,
-    isSystem: false,
-  }
+  const { data, error } = await client
+    .from("categories")
+    .insert({
+      wallet_id: wallet.id,
+      name: body.name.trim(),
+      type: body.type as "income" | "expense",
+      is_preset: false,
+      is_system: false,
+    })
+    .select("id")
+    .single()
 
-  await db.insert(categories).values(newCategory)
+  if (error) throw createError({ statusCode: 500, message: error.message })
 
-  return { success: true, id: newCategory.id }
+  return { success: true, id: data.id }
 })

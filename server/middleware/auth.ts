@@ -1,15 +1,9 @@
-import { auth } from "~~/lib/auth"
-import { fromNodeHeaders } from "better-auth/node"
+import { serverSupabaseUser } from "#supabase/server"
 
 export default defineEventHandler(async (event) => {
-  if (event.path.startsWith("/api/auth")) return
-
   try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(event.node.req.headers),
-    })
-    event.context.session = session
+    event.context.user = await serverSupabaseUser(event)
   } catch {
-    event.context.session = null
+    event.context.user = null
   }
 })

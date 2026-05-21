@@ -1,85 +1,72 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm"
-import { db } from "~~/server/utils/db"
-import { transactions, categories } from "~~/server/database/schema"
-import { getWalletByUserId } from "~~/server/utils/wallet"
+import { serverSupabaseClient } from "#supabase/server"
 
 export default defineEventHandler(async (event) => {
-  const session = event.context.session
-  if (!session?.user?.id) {
-    throw createError({ statusCode: 401, message: "Unauthorized" })
-  }
+  const user = event.context.user
+  if (!user?.id) throw createError({ statusCode: 401, message: "Unauthorized" })
 
-  const wallet = await getWalletByUserId(session.user.id)
+  const client = await serverSupabaseClient(event)
+  const wallet = await getWalletByUserId(event, user.id)
 
   const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
-  // All-time totals per category type
-  const allTimeTotals = await db
-    .select({
-      type: categories.type,
-      total: sql<number>`sum(${transactions.amount})`,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(eq(transactions.walletId, wallet.id))
-    .groupBy(categories.type)
+  // Semua transaksi dengan tipe kategori (untuk all-time totals)
+  const { data: allTxs } = await client
+    .from("transactions")
+    .select("amount, category:categories(type)")
+    .eq("wallet_id", wallet.id)
 
-  // This month totals per category type
-  const monthTotals = await db
-    .select({
-      type: categories.type,
-      total: sql<number>`sum(${transactions.amount})`,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(and(eq(transactions.walletId, wallet.id), gte(transactions.date, monthStart)))
-    .groupBy(categories.type)
+  // Transaksi bulan ini
+  const { data: monthTxs } = await client
+    .from("transactions")
+    .select("amount, category:categories(id, name, type, is_system)")
+    .eq("wallet_id", wallet.id)
+    .gte("date", monthStart)
 
-  // Top 5 spending categories this month (exclude system/uncategorized)
-  const topCategories = await db
-    .select({
-      name: categories.name,
-      type: categories.type,
-      total: sql<number>`sum(${transactions.amount})`,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(
-      and(
-        eq(transactions.walletId, wallet.id),
-        gte(transactions.date, monthStart),
-        eq(categories.type, "expense"),
-        eq(categories.isSystem, false),
-      )
-    )
-    .groupBy(categories.id)
-    .orderBy(sql`sum(${transactions.amount}) desc`)
+  // 5 transaksi terbaru
+  const { data: recentTxs } = await client
+    .from("transactions")
+    .select("id, amount, description, date, category:categories(id, name, type)")
+    .eq("wallet_id", wallet.id)
+    .order("date", { ascending: false })
     .limit(5)
 
-  // Recent 5 transactions
-  const recentTransactions = await db
-    .select({
-      id: transactions.id,
-      amount: transactions.amount,
-      description: transactions.description,
-      date: transactions.date,
-      category: {
-        id: categories.id,
-        name: categories.name,
-        type: categories.type,
-      },
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(eq(transactions.walletId, wallet.id))
-    .orderBy(desc(transactions.date))
-    .limit(5)
+  // Hitung all-time totals
+  const allTimeIncome = (allTxs ?? [])
+    .filter((t: any) => t.category?.type === "income")
+    .reduce((sum: number, t: any) => sum + Number(t.amount), 0)
 
-  const allTimeIncome = allTimeTotals.find((r) => r.type === "income")?.total ?? 0
-  const allTimeExpense = allTimeTotals.find((r) => r.type === "expense")?.total ?? 0
-  const monthIncome = monthTotals.find((r) => r.type === "income")?.total ?? 0
-  const monthExpense = monthTotals.find((r) => r.type === "expense")?.total ?? 0
+  const allTimeExpense = (allTxs ?? [])
+    .filter((t: any) => t.category?.type === "expense")
+    .reduce((sum: number, t: any) => sum + Number(t.amount), 0)
+
+  // Hitung bulan ini
+  const monthIncome = (monthTxs ?? [])
+    .filter((t: any) => t.category?.type === "income")
+    .reduce((sum: number, t: any) => sum + Number(t.amount), 0)
+
+  const monthExpense = (monthTxs ?? [])
+    .filter((t: any) => t.category?.type === "expense")
+    .reduce((sum: number, t: any) => sum + Number(t.amount), 0)
+
+  // Top 5 kategori pengeluaran bulan ini (exclude system)
+  const expenseTxs = (monthTxs ?? []).filter(
+    (t: any) => t.category?.type === "expense" && !t.category?.is_system
+  )
+
+  const catMap = new Map<string, { name: string; type: string; total: number }>()
+  for (const tx of expenseTxs) {
+    if (!tx.category?.id) continue
+    const key = tx.category.id
+    if (!catMap.has(key)) {
+      catMap.set(key, { name: tx.category.name, type: tx.category.type, total: 0 })
+    }
+    catMap.get(key)!.total += Number((tx as any).amount)
+  }
+
+  const topCategories = Array.from(catMap.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5)
 
   return {
     allTime: {
@@ -93,6 +80,6 @@ export default defineEventHandler(async (event) => {
       net: monthIncome - monthExpense,
     },
     topCategories,
-    recentTransactions,
+    recentTransactions: recentTxs ?? [],
   }
 })

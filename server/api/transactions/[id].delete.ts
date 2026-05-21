@@ -1,34 +1,28 @@
-import { and, eq } from "drizzle-orm"
-import { db } from "~~/server/utils/db"
-import { transactions } from "~~/server/database/schema"
-import { getWalletByUserId } from "~~/server/utils/wallet"
+import { serverSupabaseClient } from "#supabase/server"
 
 export default defineEventHandler(async (event) => {
-  const session = event.context.session
-  if (!session?.user?.id) {
-    throw createError({ statusCode: 401, message: "Unauthorized" })
-  }
+  const user = event.context.user
+  if (!user?.id) throw createError({ statusCode: 401, message: "Unauthorized" })
 
   const id = getRouterParam(event, "id")
-  if (!id) {
-    throw createError({ statusCode: 400, message: "Transaction ID wajib diisi" })
-  }
+  if (!id) throw createError({ statusCode: 400, message: "Transaction ID wajib diisi" })
 
-  const wallet = await getWalletByUserId(session.user.id)
+  const client = await serverSupabaseClient(event)
+  const wallet = await getWalletByUserId(event, user.id)
 
   // Verify ownership sebelum delete
-  const existing = await db.query.transactions.findFirst({
-    where: and(
-      eq(transactions.id, id),
-      eq(transactions.walletId, wallet.id)
-    ),
-  })
+  const { data: existing } = await client
+    .from("transactions")
+    .select("id")
+    .eq("id", id)
+    .eq("wallet_id", wallet.id)
+    .single()
 
-  if (!existing) {
-    throw createError({ statusCode: 404, message: "Transaksi tidak ditemukan" })
-  }
+  if (!existing) throw createError({ statusCode: 404, message: "Transaksi tidak ditemukan" })
 
-  await db.delete(transactions).where(eq(transactions.id, id))
+  const { error } = await client.from("transactions").delete().eq("id", id)
+
+  if (error) throw createError({ statusCode: 500, message: error.message })
 
   return { success: true }
 })
