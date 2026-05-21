@@ -26,7 +26,6 @@ jobs:
 
       - run: npx nuxt build --preset github_pages
         env:
-          NUXT_APP_BASE_URL: /money-tracker/
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 

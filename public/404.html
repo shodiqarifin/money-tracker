@@ -5,11 +5,10 @@
   <title>Money Tracker</title>
   <script>
     // GitHub Pages SPA fallback: redirect ke index.html dengan path di query string
-    var base = '/money-tracker';
-    var path = window.location.pathname.replace(base, '') || '/';
+    var path = window.location.pathname || '/';
     var search = window.location.search;
     var hash = window.location.hash;
-    window.location.replace(base + '/?redirect=' + encodeURIComponent(path + search) + hash);
+    window.location.replace('/?redirect=' + encodeURIComponent(path + search) + hash);
   </script>
 </head>
 </html>
