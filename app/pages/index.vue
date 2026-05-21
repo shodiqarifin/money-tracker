@@ -4,7 +4,7 @@ definePageMeta({ layout: false })
 const { isLoggedIn } = useAuthClient()
 
 onMounted(() => {
-  window.location.href = isLoggedIn.value ? "/dashboard" : "/login"
+  navigateTo(isLoggedIn.value ? "/dashboard" : "/login")
 })
 </script>
 
