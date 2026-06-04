@@ -25,7 +25,16 @@ export default defineNuxtConfig({
     },
   },
 
+  runtimeConfig: {
+    public: {
+      vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
+    },
+  },
+
   pwa: {
+    strategies: "injectManifest",
+    srcDir: "app",
+    filename: "sw.ts",
     registerType: "autoUpdate",
     manifest: {
       name: "Money Tracker",
@@ -44,30 +53,8 @@ export default defineNuxtConfig({
         { src: "maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
       ],
     },
-    workbox: {
-      navigateFallback: "/",
-      runtimeCaching: [
-        {
-          urlPattern: /\.(js|css|woff2?)$/,
-          handler: "CacheFirst",
-          options: {
-            cacheName: "static-assets",
-            expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
-          },
-        },
-        {
-          urlPattern: /\.(png|jpg|jpeg|svg|gif|webp|ico)$/,
-          handler: "StaleWhileRevalidate",
-          options: {
-            cacheName: "images",
-            expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
-          },
-        },
-        {
-          urlPattern: /supabase\.co\//,
-          handler: "NetworkOnly",
-        },
-      ],
+    injectManifest: {
+      globPatterns: ["**/*.{js,css,html,png,svg,ico,woff2}"],
     },
     devOptions: {
       enabled: true,

@@ -6,6 +6,9 @@ if (import.meta.client) {
   client.auth.getSession().then(() => {
     authReady.value = true
   })
+  
+  // Initialize notifications globally
+  const { notificationsEnabled, permission } = useNotifications()
 } else {
   authReady.value = true
 }

@@ -2,6 +2,16 @@
 definePageMeta({ middleware: 'auth' })
 
 const { user, updateName, updatePassword } = useProfile()
+const {
+  notificationsEnabled,
+  reminderTime,
+  permission,
+  loading: notificationLoading,
+  enableNotifications,
+  disableNotifications,
+  updateReminderTime,
+  sendTestNotification,
+} = useNotifications()
 
 const nameInput = ref('')
 const nameLoading = ref(false)
@@ -13,6 +23,8 @@ const passwordConfirm = ref('')
 const passwordLoading = ref(false)
 const passwordSuccess = ref(false)
 const passwordError = ref<string | null>(null)
+
+const notificationError = ref<string | null>(null)
 
 onMounted(() => {
   nameInput.value = user.value?.user_metadata?.name || ''
@@ -55,6 +67,26 @@ async function handleUpdatePassword() {
   } finally {
     passwordLoading.value = false
   }
+}
+
+async function handleToggleNotifications() {
+  notificationError.value = null
+  try {
+    if (notificationsEnabled.value) {
+      await disableNotifications()
+    } else {
+      const success = await enableNotifications()
+      if (!success) {
+        notificationError.value = 'Gagal mengaktifkan notifikasi. Pastikan browser mendukung notifikasi.'
+      }
+    }
+  } catch (e: any) {
+    notificationError.value = e?.message || 'Gagal mengubah pengaturan notifikasi'
+  }
+}
+
+function handleUpdateTime() {
+  updateReminderTime(reminderTime.value)
 }
 </script>
 
@@ -118,6 +150,54 @@ async function handleUpdatePassword() {
             {{ passwordLoading ? 'Menyimpan...' : 'Ganti Password' }}
           </button>
         </form>
+      </div>
+
+      <!-- Notifikasi -->
+      <div class="bg-surface rounded-2xl border border-white/10 p-6">
+        <h2 class="text-sm font-medium text-muted mb-4">Notifikasi Pengingat Harian</h2>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-foreground">Aktifkan Notifikasi</div>
+              <div class="text-xs text-muted mt-1">
+                Dapatkan pengingat untuk mencatat transaksi harian
+              </div>
+            </div>
+            <button
+              @click="handleToggleNotifications"
+              :disabled="notificationLoading"
+              class="relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none"
+              :class="notificationsEnabled ? 'bg-primary' : 'bg-white/10'"
+            >
+              <div
+                class="absolute top-1 w-4 h-4 rounded-full bg-white transition-transform duration-200"
+                :class="notificationsEnabled ? 'left-7' : 'left-1'"
+              />
+            </button>
+          </div>
+
+          <div v-if="notificationsEnabled" class="space-y-3">
+            <div class="text-sm text-foreground">Waktu Pengingat</div>
+            <input
+              v-model="reminderTime"
+              type="time"
+              @change="handleUpdateTime"
+              class="w-full bg-background border border-white/10 rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-white/30"
+            />
+            <button
+              type="button"
+              @click="sendTestNotification"
+              class="text-xs text-muted underline hover:text-foreground transition-colors"
+            >
+              Kirim notifikasi test
+            </button>
+          </div>
+
+          <div v-if="permission === 'denied'" class="text-sm text-yellow-400">
+            Notifikasi diblokir. Aktifkan notifikasi di pengaturan browser.
+          </div>
+          <div v-if="notificationError" class="text-sm text-red-400">{{ notificationError }}</div>
+        </div>
       </div>
     </div>
   </div>
