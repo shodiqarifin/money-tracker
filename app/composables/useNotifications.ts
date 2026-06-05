@@ -45,12 +45,18 @@ export function useNotifications() {
   async function subscribeToPush(registration: ServiceWorkerRegistration): Promise<PushSubscription | null> {
     try {
       const vapidKey = config.public.vapidPublicKey as string
+      if (!vapidKey) {
+        console.error('VAPID_PUBLIC_KEY tidak ada di build. Pastikan GitHub secret sudah diset dan push ulang.')
+        return null
+      }
+      const keyBytes = urlBase64ToUint8Array(vapidKey)
+      console.log('[push] vapidKey length:', keyBytes.length, '(harus 65)')
       const existing = await registration.pushManager.getSubscription()
       if (existing) return existing
 
       return await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        applicationServerKey: keyBytes,
       })
     } catch (err) {
       console.error('Push subscribe failed:', err)
